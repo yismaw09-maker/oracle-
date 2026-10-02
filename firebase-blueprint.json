@@ -1,0 +1,232 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile data linked to authentication UID",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth user ID",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user",
+          "maxLength": 120
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar URL",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "User account creation timestamp"
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last login timestamp"
+        }
+      },
+      "required": ["uid", "email", "displayName"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Project workspace grouping related tasks",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique project identifier",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Project name",
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "description": "Project brief summary",
+          "maxLength": 500
+        },
+        "color": {
+          "type": "string",
+          "description": "Hex or theme color indicator",
+          "maxLength": 30
+        },
+        "icon": {
+          "type": "string",
+          "description": "Icon identifier",
+          "maxLength": 50
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last updated timestamp"
+        }
+      },
+      "required": ["id", "userId", "name", "color"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A discrete actionable task item",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique task identifier",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID",
+          "maxLength": 128
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Associated project ID",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Task title summary",
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed task description",
+          "maxLength": 2000
+        },
+        "status": {
+          "type": "string",
+          "enum": ["todo", "in_progress", "in_review", "done"],
+          "description": "Workflow stage"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "urgent"],
+          "description": "Urgency and importance rating"
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "Target completion date string in YYYY-MM-DD format",
+          "maxLength": 20
+        },
+        "tags": {
+          "type": "array",
+          "description": "List of categorical tags",
+          "maxLength": 10
+        },
+        "subtasks": {
+          "type": "array",
+          "description": "List of checklist subtasks"
+        },
+        "completedAt": {
+          "type": "string",
+          "description": "Timestamp when status was moved to done",
+          "maxLength": 50
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["id", "userId", "projectId", "title", "status", "priority"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Audit event log for changes made in the dashboard",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique log entry ID",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID who triggered the action",
+          "maxLength": 128
+        },
+        "action": {
+          "type": "string",
+          "description": "Action type (e.g. task_created, task_completed, project_created)",
+          "maxLength": 50
+        },
+        "entityType": {
+          "type": "string",
+          "description": "Type of entity affected",
+          "maxLength": 30
+        },
+        "entityId": {
+          "type": "string",
+          "description": "ID of affected entity",
+          "maxLength": 128
+        },
+        "details": {
+          "type": "string",
+          "description": "Human-readable description",
+          "maxLength": 300
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the event"
+        }
+      },
+      "required": ["id", "userId", "action", "details"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User profiles indexed by auth UID"
+    },
+    "/projects/{projectId}": {
+      "schema": {
+        "$ref": "#/entities/Project"
+      },
+      "description": "Workspaces and projects owned by users"
+    },
+    "/tasks/{taskId}": {
+      "schema": {
+        "$ref": "#/entities/Task"
+      },
+      "description": "Actionable task items owned by users and associated with projects"
+    },
+    "/activities/{activityId}": {
+      "schema": {
+        "$ref": "#/entities/ActivityLog"
+      },
+      "description": "Audit trail of task actions and milestones"
+    }
+  }
+}

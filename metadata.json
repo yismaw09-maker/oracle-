@@ -1,0 +1,6 @@
+{
+  "name": "TaskFlow - Task Management Dashboard",
+  "description": "Comprehensive React task management dashboard with integrated user authentication, agile project tracking, custom boards, and team productivity analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

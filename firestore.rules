@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common security primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation helpers
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName']) &&
+        data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'createdAt', 'lastLoginAt']) &&
+        data.uid is string && data.uid == request.auth.uid && data.uid.size() <= 128 &&
+        data.email is string && data.email.size() <= 256 &&
+        data.displayName is string && data.displayName.size() <= 120 &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000));
+    }
+
+    function isValidProject(data) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'color']) &&
+        data.keys().hasOnly(['id', 'userId', 'name', 'description', 'color', 'icon', 'createdAt', 'updatedAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 120 &&
+        data.color is string && data.color.size() <= 30 &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+        (!('icon' in data) || (data.icon is string && data.icon.size() <= 50));
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['id', 'userId', 'projectId', 'title', 'status', 'priority']) &&
+        data.keys().hasOnly(['id', 'userId', 'projectId', 'title', 'description', 'status', 'priority', 'dueDate', 'tags', 'subtasks', 'completedAt', 'createdAt', 'updatedAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.projectId is string && data.projectId.size() <= 128 &&
+        data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+        data.status in ['todo', 'in_progress', 'in_review', 'done'] &&
+        data.priority in ['low', 'medium', 'high', 'urgent'] &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
+        (!('dueDate' in data) || (data.dueDate is string && data.dueDate.size() <= 30)) &&
+        (!('tags' in data) || (data.tags is list && data.tags.size() <= 15)) &&
+        (!('subtasks' in data) || (data.subtasks is list && data.subtasks.size() <= 50)) &&
+        (!('completedAt' in data) || (data.completedAt is string && data.completedAt.size() <= 50));
+    }
+
+    function isValidActivity(data) {
+      return data.keys().hasAll(['id', 'userId', 'action', 'details']) &&
+        data.keys().hasOnly(['id', 'userId', 'action', 'entityType', 'entityId', 'details', 'timestamp']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.action is string && data.action.size() <= 50 &&
+        data.details is string && data.details.size() <= 300 &&
+        (!('entityType' in data) || (data.entityType is string && data.entityType.size() <= 30)) &&
+        (!('entityId' in data) || (data.entityId is string && data.entityId.size() <= 128));
+    }
+
+    // User profile collection - PII isolation: users can only read and write their own document
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && isValidUserProfile(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && isValidUserProfile(incoming()) && incoming().uid == existing().uid;
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+    }
+
+    // Projects collection
+    match /projects/{projectId} {
+      allow get: if isSignedIn() && isValidId(projectId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(projectId) && incoming().userId == request.auth.uid && isValidProject(incoming());
+      allow update: if isSignedIn() && isValidId(projectId) && existing().userId == request.auth.uid && incoming().userId == existing().userId && isValidProject(incoming());
+      allow delete: if isSignedIn() && isValidId(projectId) && existing().userId == request.auth.uid;
+    }
+
+    // Tasks collection
+    match /tasks/{taskId} {
+      allow get: if isSignedIn() && isValidId(taskId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(taskId) && incoming().userId == request.auth.uid && isValidTask(incoming());
+      allow update: if isSignedIn() && isValidId(taskId) && existing().userId == request.auth.uid && incoming().userId == existing().userId && isValidTask(incoming());
+      allow delete: if isSignedIn() && isValidId(taskId) && existing().userId == request.auth.uid;
+    }
+
+    // Activity log collection
+    match /activities/{activityId} {
+      allow get: if isSignedIn() && isValidId(activityId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(activityId) && incoming().userId == request.auth.uid && isValidActivity(incoming());
+      allow update: if false; // Append-only audit trail
+      allow delete: if isSignedIn() && isValidId(activityId) && existing().userId == request.auth.uid;
+    }
+  }
+}
